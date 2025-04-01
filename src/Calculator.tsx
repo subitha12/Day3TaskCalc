@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Typography, Snackbar, Alert, Container } from "@mui/material";
 import styled from "styled-components";
 
@@ -29,17 +29,26 @@ const DisplayWrapper = styled.div`
   word-wrap: break-word;
 `;
 
-const DisplayText = styled.div`
+const DisplayInput = styled.input`
   font-size: 2rem;
-  overflow-x: auto;
-  white-space: nowrap;
+  width: 100%;
+  background: transparent;
+  color: white;
+  border: none;
+  outline: none;
+  text-align: right;
   max-width: 100%;
+  white-space: nowrap;
 `;
 
-const HistoryText = styled.div`
+const HistoryList = styled.div`
+  max-height: 150px;
+  overflow-y: auto;
   font-size: 1rem;
   color: #bbb;
-  min-height: 20px;
+  width: 100%;
+  text-align: right;
+  margin-bottom: 10px;
 `;
 
 const ButtonGrid = styled.div`
@@ -72,14 +81,19 @@ const OperatorButton = styled(CalcButton)`
   }
 `;
 
-const Calculator: React.FC = () => {
-  const [display, setDisplay] = useState<string>("0");
-  const [history, setHistory] = useState<string>("");
-  const [isResult, setIsResult] = useState<boolean>(false);
-  const [open, setOpen] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
+const Calculator = () => {
+  const [display, setDisplay] = useState("0");
+  const [history, setHistory] = useState<string[]>([]);
+  const [isResult, setIsResult] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
 
   const handleClose = () => setOpen(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDisplay(e.target.value);
+    setIsResult(false);
+  };
 
   const handleClick = (value: string) => {
     if (isResult) {
@@ -100,7 +114,10 @@ const Calculator: React.FC = () => {
   const calculateResult = () => {
     try {
       const result = eval(display);
-      setHistory(display + " =");
+      setHistory((prevHistory) => [
+        ...prevHistory,
+        `${display} = ${result}`,
+      ]);
       setDisplay(result.toString());
       setIsResult(true);
     } catch {
@@ -111,7 +128,7 @@ const Calculator: React.FC = () => {
 
   const clearAll = () => {
     setDisplay("0");
-    setHistory("");
+    setHistory([]);
     setIsResult(false);
   };
 
@@ -120,15 +137,49 @@ const Calculator: React.FC = () => {
     setIsResult(false);
   };
 
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const key = event.key;
+    if (/[0-9]/.test(key)) {
+      handleClick(key);
+    } else if (["+", "-", "*", "/"].includes(key)) {
+      handleOperator(key);
+    } else if (key === "Enter") {
+      calculateResult();
+    } else if (key === "Backspace") {
+      deleteLast();
+    } else if (key === "Escape") {
+      clearAll();
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [display]);
+
   return (
     <Container maxWidth="xs">
       <CalculatorWrapper>
         <Typography variant="h4" color="white" gutterBottom>
           <strong>CALCULATOR</strong>
         </Typography>
+        <HistoryList>
+          {history.length === 0 ? (
+            <Typography variant="body2" color="#bbb">
+              No history available
+            </Typography>
+          ) : (
+            history.map((entry, index) => (
+              <div key={index}>{entry}</div>
+            ))
+          )}
+        </HistoryList>
         <DisplayWrapper>
-          <HistoryText>{history}</HistoryText>
-          <DisplayText>{display}</DisplayText>
+          <DisplayInput
+            value={display}
+            onChange={handleChange}
+            placeholder="0"
+          />
         </DisplayWrapper>
         <ButtonGrid>
           <CalcButton onClick={clearAll}>C</CalcButton>
